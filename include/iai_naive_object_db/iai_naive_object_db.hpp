@@ -33,8 +33,14 @@
 #include <map>
 #include <string>
 #include <exception>
+#include <algorithm>
 #include <visualization_msgs/Marker.h>
+#include <visualization_msgs/MarkerArray.h>
 #include <geometry_msgs/TransformStamped.h>
+#include <ros/ros.h>
+#include <tf2_msgs/TFMessage.h>
+#include <iai_naive_object_db/Object.h>
+#include <iai_naive_object_db/ObjectArray.h>
 
 namespace iai_naive_object_db
 {
@@ -42,18 +48,63 @@ namespace iai_naive_object_db
   class ObjectDB
   {
     public:
-      void set_object(const std::string& name, const visualization_msgs::Marker& object)
+      ObjectDB(const ros::NodeHandle& nh): nh_(nh)
+      {}
+
+      ~ObjectDB() {}
+
+      bool add_object(iai_naive_object_db::ObjectArray::Request &req,
+		      iai_naive_object_db::ObjectArray::Response &res)
       {
-        map_[name] = object;
-        update_markers();
-        update_transforms();
+	ROS_INFO("Doing adding stuff...");
+	
+	for(size_t i = 0; i < req.objects.size(); ++i)
+	{
+		set_object(req.objects[i].name, req.objects[i]);
+		ROS_INFO("One object set");
+	}
+
+	return true;	
       }
 
-      void remove_object(const std::string& name)
+      bool remove_object(iai_naive_object_db::ObjectArray::Request &req,
+		      iai_naive_object_db::ObjectArray::Response &res)
+      {
+	ROS_INFO("Doing removing stuff...");
+	
+	for(size_t i = 0; i < req.objects.size(); ++i)
+	{
+		remove_object(req.objects[i].name, req.objects[i]);
+		ROS_INFO("One object removed");	
+	}
+
+	return true;	
+      }
+	
+      void set_object(const std::string& name, const iai_naive_object_db::Object& object)
+      {
+        map_.insert(std::pair<std::string, iai_naive_object_db::Object>(name, object));
+	update_markers(object, "add");	
+        update_transforms(object);
+      }
+
+      void remove_object(const std::string& name, const iai_naive_object_db::Object& object)
       {
         map_.erase(name);
-        update_markers();
-        update_transforms();
+        update_markers(object, "remove");
+        update_transforms(object);
+      }
+
+      void set_transform_msg(const std::vector<geometry_msgs::TransformStamped>& transforms)
+      {
+	transform_msg_.transforms.clear();  // reinitialize the list
+	transform_msg_.transforms = transforms;
+      }
+
+      void set_marker_array(const std::vector<visualization_msgs::Marker>& markers)
+      {
+	marker_array_.markers.clear();  // reinitialize the list
+	marker_array_.markers = markers;
       }
 
       const std::vector<geometry_msgs::TransformStamped>& get_transforms() const
@@ -66,24 +117,103 @@ namespace iai_naive_object_db
         return markers_;
       }
 
-      const std::map<std::string, visualization_msgs::Marker>& get_map() const
+      const std::map<std::string, iai_naive_object_db::Object>& get_map() const
       {
         return map_;
+      }	
+
+      const visualization_msgs::MarkerArray& get_marker_array() const
+      {
+	return marker_array_;
+      }
+
+      const tf2_msgs::TFMessage& get_transform_msg() const
+      {
+	return transform_msg_;
+      }
+
+      void start(const ros::Duration& period)
+      {
+	pub_markers_ = nh_.advertise<visualization_msgs::MarkerArray>("/visualization_marker_array", 1);
+	pub_transforms_ = nh_.advertise<tf2_msgs::TFMessage>("/tf", 1);
+	timer_ = nh_.createTimer(period, &ObjectDB::callback, this);
+	srv_add_ = nh_.advertiseService("/iai_naive_object_db/add_object_service", &ObjectDB::add_object, this);
+	srv_remove_ = nh_.advertiseService("/iai_naive_object_db/remove_object_service", &ObjectDB::remove_object, this);
       }
 
     private:
-      std::map<std::string, visualization_msgs::Marker> map_;
+      std::map<std::string, iai_naive_object_db::Object> map_;
       std::vector<geometry_msgs::TransformStamped> transforms_;
+      tf2_msgs::TFMessage transform_msg_;
       std::vector<visualization_msgs::Marker> markers_;
+      visualization_msgs::MarkerArray marker_array_;
+      ros::NodeHandle nh_;
+      ros::Timer timer_;
+      ros::Publisher pub_markers_;
+      ros::Publisher pub_transforms_;
+      ros::ServiceServer srv_add_;
+      ros::ServiceServer srv_remove_;
 
-      void update_markers()
+      void update_markers(const iai_naive_object_db::Object& object, const std::string& intent)
       {
-        // TODO: implemente me
+	markers_.clear();  // reinitialize the list
+	std::map<std::string, iai_naive_object_db::Object>::iterator it;
+	
+	for(it = map_.begin(); it != map_.end(); ++it)
+	{
+	  for(size_t i = 0; i < it->second.markers.size(); ++i)
+	  {
+	    
+	    markers_.push_back(it->second.markers[i]);
+	  }
+	}
+
+	set_marker_array(markers_);	
       }
 
-      void update_transforms()
+      void update_transforms(const iai_naive_object_db::Object& object)
       {
-        // TODO: implemente me
+	transforms_.clear();  // reinitialize the list
+	std::map<std::string, iai_naive_object_db::Object>::iterator it;
+
+	for(it = map_.begin(); it != map_.end(); ++it)
+	{
+	  for(size_t i = 0; i < object.frames.size(); ++i)
+	  {
+	    transforms_.push_back(it->second.frames[i]);
+	  }
+	}
+	set_transform_msg(transforms_);	
+      }
+
+      void callback(const ros::TimerEvent& e)
+      {
+        while (pub_markers_.getNumSubscribers() < 1)
+	{
+	  ros::Duration(1).sleep();
+	  if (!ros::ok())
+	  {
+	    throw std::runtime_error("Problem");
+	  }
+	  ROS_WARN_ONCE("Please create a subscriber to the marker");
+	  ros::Duration(1).sleep();
+	}
+
+        while (pub_transforms_.getNumSubscribers() < 1)
+	{
+	  ros::Duration(1).sleep();
+	  if (!ros::ok())
+	  {
+	    throw std::runtime_error("Problem");
+	  }
+	  ROS_WARN_ONCE("Please create a subscriber to frames");
+	  ros::Duration(1).sleep();
+	}
+
+	pub_markers_.publish(get_marker_array());
+	ROS_INFO("Published markers!");
+	pub_transforms_.publish(get_transform_msg());
+	ROS_INFO("Published tfs!");
       }
   };
 }
