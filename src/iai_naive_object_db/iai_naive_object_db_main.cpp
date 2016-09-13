@@ -6,6 +6,7 @@ int main(int argc, char **argv)
   ros::NodeHandle nh;
   iai_naive_object_db::ObjectDBNode my_object_db_node(nh);  // Write the correct class
 
+  // TODO: read period from parameter server
   try
   {
     my_object_db_node.start(ros::Duration(0.1));

@@ -54,40 +54,20 @@ namespace iai_naive_object_db
 
       ~ObjectDB() {}
 	
-      void set_object(const std::string& name, const iai_naive_object_db::Object& object)
+      void set_objects(const std::vector<iai_naive_object_db::Object>& objects)
       {
-        map_.insert(std::pair<std::string, iai_naive_object_db::Object>(name, object));
-	update_markers(object);	
-        update_transforms(object);
+        for (size_t i=0; i<objects.size(); ++i)
+          map_.insert(std::pair<std::string, iai_naive_object_db::Object>(objects[i].name, objects[i]));
+	update_markers();	
+        update_transforms();
       }
 
-      void remove_object(const std::string& name, const iai_naive_object_db::Object& object)
+      void remove_objects(const std::vector<iai_naive_object_db::Object>& objects)
       {
-        map_.erase(name);
-        update_markers(object);
-        update_transforms(object);
-      }
-
-      void set_transform_msg(const std::vector<geometry_msgs::TransformStamped>& transforms)
-      {
-	transform_msg_.transforms.clear();  // reinitialize the list
-	transform_msg_.transforms = transforms;
-      }
-
-      void set_marker_array(const std::vector<visualization_msgs::Marker>& markers)
-      {
-	marker_array_.markers.clear();  // reinitialize the list
-	marker_array_.markers = markers;
-      }
-
-      const std::vector<geometry_msgs::TransformStamped>& get_transforms() const
-      {
-        return transforms_;
-      }
-
-      const std::vector<visualization_msgs::Marker>& get_markers() const
-      {
-        return markers_;
+        for (size_t i=0; i<objects.size(); ++i)
+          map_.erase(objects[i].name);
+        update_markers();
+        update_transforms();
       }
 
       const std::map<std::string, iai_naive_object_db::Object>& get_map() const
@@ -107,14 +87,12 @@ namespace iai_naive_object_db
 
     private:
       std::map<std::string, iai_naive_object_db::Object> map_;
-      std::vector<geometry_msgs::TransformStamped> transforms_;
       tf2_msgs::TFMessage transform_msg_;
-      std::vector<visualization_msgs::Marker> markers_;
       visualization_msgs::MarkerArray marker_array_;
 
-      void update_markers(const iai_naive_object_db::Object& object)
+      void update_markers()
       {
-	markers_.clear();  // reinitialize the list
+	marker_array_.markers.clear();  // reinitialize the list
 	std::map<std::string, iai_naive_object_db::Object>::iterator it;
 	
 	for(it = map_.begin(); it != map_.end(); ++it)
@@ -122,25 +100,23 @@ namespace iai_naive_object_db
 	  for(size_t i = 0; i < it->second.markers.size(); ++i)
 	  {
 	    
-	    markers_.push_back(it->second.markers[i]);
+	    marker_array_.markers.push_back(it->second.markers[i]);
 	  }
 	}
-	set_marker_array(markers_);	
       }
 
-      void update_transforms(const iai_naive_object_db::Object& object)
+      void update_transforms()
       {
-	transforms_.clear();  // reinitialize the list
+	transform_msg_.transforms.clear();  // reinitialize the list
 	std::map<std::string, iai_naive_object_db::Object>::iterator it;
 
 	for(it = map_.begin(); it != map_.end(); ++it)
 	{
-	  for(size_t i = 0; i < object.frames.size(); ++i)
+	  for(size_t i = 0; i < it->second.frames.size(); ++i)
 	  {
-	    transforms_.push_back(it->second.frames[i]);
+	    transform_msg_.transforms.push_back(it->second.frames[i]);
 	  }
 	}
-	set_transform_msg(transforms_);	
       }
   };
 }

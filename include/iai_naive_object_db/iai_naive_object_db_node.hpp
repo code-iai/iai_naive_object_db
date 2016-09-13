@@ -47,12 +47,8 @@ namespace iai_naive_object_db
 		      iai_naive_object_db::ObjectArray::Response &res)
       {
 	ROS_INFO("Doing adding stuff...");
-	
-	for(size_t i = 0; i < req.objects.size(); ++i)
-	{
-		database_.set_object(req.objects[i].name, req.objects[i]);
-		ROS_INFO("One object set");
-	}
+	// TODO: catch exceptions
+        database_.set_objects(req.objects);
 
 	return true;	
       }
@@ -61,14 +57,10 @@ namespace iai_naive_object_db
 		         iai_naive_object_db::ObjectArray::Response &res)
       {
 	ROS_INFO("Doing removing stuff...");
-	
-	for(size_t i = 0; i < req.objects.size(); ++i)
-	{
-		database_.remove_object(req.objects[i].name, req.objects[i]);
-		ROS_INFO("One object removed");	
-	}
+	// TODO: catch exceptions
+	database_.remove_objects(req.objects);
 
-	return true;	
+      	return true;	
       }
 
       void start(const ros::Duration& period)
@@ -91,28 +83,6 @@ namespace iai_naive_object_db
 
       void callback(const ros::TimerEvent& e)
       {
-        while (pub_markers_.getNumSubscribers() < 1)
-	{
-	  ros::Duration(1).sleep();
-	  if (!ros::ok())
-	  {
-	    throw std::runtime_error("Problem");
-	  }
-	  ROS_WARN_ONCE("Please create a subscriber to the marker");
-	  ros::Duration(1).sleep();
-	}
-
-        while (pub_transforms_.getNumSubscribers() < 1)
-	{
-	  ros::Duration(1).sleep();
-	  if (!ros::ok())
-	  {
-	    throw std::runtime_error("Problem");
-	  }
-	  ROS_WARN_ONCE("Please create a subscriber to frames");
-	  ros::Duration(1).sleep();
-	}
-
 	pub_markers_.publish(database_.get_marker_array());
 	ROS_INFO("Published markers!");
 	pub_transforms_.publish(database_.get_transform_msg());

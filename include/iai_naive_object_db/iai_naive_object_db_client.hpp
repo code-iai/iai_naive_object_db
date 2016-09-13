@@ -61,7 +61,7 @@ namespace iai_naive_object_db_client
         marker.header.stamp = ros::Time();
         marker.ns = "test_namespace";
         marker.id = 1;
-        marker.type = 1;
+        marker.type = visualization_msgs::Marker::CUBE;
         marker.action = visualization_msgs::Marker::ADD;
         marker.pose.position.x = 0.8;
         marker.pose.position.y = 0;
