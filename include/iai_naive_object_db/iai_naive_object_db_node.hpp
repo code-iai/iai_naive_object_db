@@ -83,6 +83,7 @@ namespace iai_naive_object_db
 
       void callback(const ros::TimerEvent& e)
       {
+        database_.update_timestamps(ros::Time::now());
 	pub_markers_.publish(database_.get_marker_array());
 	ROS_INFO("Published markers!");
 	pub_transforms_.publish(database_.get_transform_msg());

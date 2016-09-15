@@ -11,6 +11,7 @@ include_directories(
 add_message_files(
     FILES
     Object.msg
+    Visual.msg
 )
 
 add_service_files(

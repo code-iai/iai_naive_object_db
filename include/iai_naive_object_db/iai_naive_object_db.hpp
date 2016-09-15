@@ -38,6 +38,7 @@
 #include <visualization_msgs/MarkerArray.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <tf2_msgs/TFMessage.h>
+#include <iai_naive_object_db/Visual.h>
 #include <iai_naive_object_db/Object.h>
 #include <iai_naive_object_db/ObjectArray.h>
 
@@ -49,7 +50,7 @@ namespace iai_naive_object_db
     public:
       ObjectDB()
       {
-	map_.clear();
+    	map_.clear();
       }
 
       ~ObjectDB() {}
@@ -58,7 +59,7 @@ namespace iai_naive_object_db
       {
         for (size_t i=0; i<objects.size(); ++i)
           map_.insert(std::pair<std::string, iai_naive_object_db::Object>(objects[i].name, objects[i]));
-	update_markers();	
+	update_visuals();	
         update_transforms();
       }
 
@@ -66,7 +67,7 @@ namespace iai_naive_object_db
       {
         for (size_t i=0; i<objects.size(); ++i)
           map_.erase(objects[i].name);
-        update_markers();
+        update_visuals();
         update_transforms();
       }
 
@@ -85,22 +86,69 @@ namespace iai_naive_object_db
 	return transform_msg_;
       }
 
+      void update_timestamps(const ros::Time& stamp)
+      {
+        for (size_t i=0; i<transform_msg_.transforms.size(); ++i)
+          transform_msg_.transforms[i].header.stamp = stamp;
+      }
+
+      visualization_msgs::Marker visual_to_marker(
+          const iai_naive_object_db::Visual& visual,
+          const geometry_msgs::TransformStamped& transform_st)
+      {
+	visualization_msgs::Marker marker;
+
+	marker.action = visualization_msgs::Marker::ADD;  
+	marker.lifetime = ros::Duration();
+	marker.frame_locked = true;
+	
+	marker.pose.position.x = transform_st.transform.translation.x;
+        marker.pose.position.y = transform_st.transform.translation.y;
+        marker.pose.position.z = transform_st.transform.translation.z;
+        marker.pose.orientation = transform_st.transform.rotation;
+
+	marker.color = visual.color;
+	marker.header = visual.header;
+	marker.type = visual.type;
+	marker.scale = visual.scale;
+	marker.text = visual.text;
+	marker.mesh_resource = visual.mesh_resource;
+	marker.mesh_use_embedded_materials = visual.mesh_use_embedded_materials;
+
+	return marker;
+      }
+
+      const geometry_msgs::TransformStamped& find_transform(const std::string& frame_id,
+          const std::vector<geometry_msgs::TransformStamped>& transforms)
+      {
+        for (size_t i=0; i<transforms.size(); ++i)
+          if (transforms[i].header.frame_id.compare(frame_id) == 0)
+            return transforms[i];
+
+        throw std::runtime_error("Could not find transform with frame_id '" + frame_id + "'");
+      }
+
     private:
       std::map<std::string, iai_naive_object_db::Object> map_;
       tf2_msgs::TFMessage transform_msg_;
-      visualization_msgs::MarkerArray marker_array_;
+      visualization_msgs::MarkerArray marker_array_; 
 
-      void update_markers()
+
+      void update_visuals()
       {
 	marker_array_.markers.clear();  // reinitialize the list
 	std::map<std::string, iai_naive_object_db::Object>::iterator it;
 	
 	for(it = map_.begin(); it != map_.end(); ++it)
 	{
-	  for(size_t i = 0; i < it->second.markers.size(); ++i)
-	  {
-	    
-	    marker_array_.markers.push_back(it->second.markers[i]);
+	  for(size_t i = 0; i < it->second.visuals.size(); ++i)
+	  {	
+            visualization_msgs::Marker marker;
+            marker = visual_to_marker(it->second.visuals[i], 
+            find_transform(it->second.visuals[i].header.frame_id, it->second.frames)); 
+            marker.ns = "test_namespace/" + it->first;
+     	    marker.id = i;
+	    marker_array_.markers.push_back(marker);
 	  }
 	}
       }
