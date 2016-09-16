@@ -57,8 +57,14 @@ namespace iai_naive_object_db
 	
       void set_objects(const std::vector<iai_naive_object_db::Object>& objects)
       {
+	std::map<std::string, iai_naive_object_db::Object>::iterator it;	
         for (size_t i=0; i<objects.size(); ++i)
+	{
           map_.insert(std::pair<std::string, iai_naive_object_db::Object>(objects[i].name, objects[i]));
+	  it = map_.find(objects[i].name);
+	  if (it != map_.end())
+	    it->second = objects[i];	  
+	}	
 	update_visuals();	
         update_transforms();
       }
