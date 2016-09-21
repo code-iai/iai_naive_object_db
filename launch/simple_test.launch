@@ -1,0 +1,13 @@
+<launch>
+
+  <remap from= "/iai_naive_object_db/add_object_service" to="/add_objects"/>
+ 
+  <remap from= "/iai_naive_object_db/remove_object_service" to="/remove_objects"/>
+ 
+  <node name="database_node" pkg="iai_naive_object_db" type="iai_naive_object_db_main" 
+        output="screen"/>
+
+  <node name="database_client" pkg="iai_naive_object_db" type="iai_naive_object_db_client_main" 
+        output="screen"/>
+
+</launch>
