@@ -12,5 +12,7 @@
   <depend>roscpp</depend>
   <depend>visualization_msgs</depend>
   <depend>geometry_msgs</depend>
+  <depend>message_generation</depend>
+  <depend>message_runtime</depend>
   <test_depend>gtest</test_depend>
 </package>
